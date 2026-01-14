@@ -37,8 +37,8 @@ export const api = {
     days: number = 365,
     useLLM: boolean = false
   ): Promise<AnalysisResponse> {
-    const response = await axios.get(`${API_URL}/api/analyze/${symbol}`, {
-      params: { timeframe, days, use_llm: useLLM }
+    const response = await axios.get(`${API_URL}/api/analyze`, {
+      params: { symbol, timeframe, days, use_llm: useLLM }
     })
     return response.data
   },
@@ -62,8 +62,9 @@ export const api = {
     days: number = 365,
     holdingPeriods: number[] = [5, 10, 20]
   ): Promise<any> {
-    const response = await axios.get(`${API_URL}/api/backtest/${symbol}`, {
+    const response = await axios.get(`${API_URL}/api/backtest`, {
       params: { 
+        symbol,
         timeframe, 
         days, 
         holding_periods: holdingPeriods.join(',') 

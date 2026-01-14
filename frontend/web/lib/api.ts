@@ -72,8 +72,8 @@ export const api = {
     days: number = 365,
     useLLM: boolean = false
   ): Promise<AnalysisResponse> {
-    const response = await axios.get(`${API_URL}/api/analyze/${symbol}`, {
-      params: { timeframe, days, use_llm: useLLM }
+    const response = await axios.get(`${API_URL}/api/analyze`, {
+      params: { symbol, timeframe, days, use_llm: useLLM }
     })
     return response.data
   },

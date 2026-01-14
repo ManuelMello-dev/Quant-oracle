@@ -16,7 +16,7 @@ def test_symbol(symbol):
             exchange=exchange,
             symbol=symbol,
             timeframe='1h',
-            limit=168,  # 7 days
+            limit=300,  # Sufficient for FFT_PERIOD=256
             vwap_period=100,
             fft_period=256,
             sigma_threshold=2.0,

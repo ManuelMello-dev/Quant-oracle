@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # --- Data Source Configuration ---
 # Options: 'cmc', 'coingecko', 'exchange', 'auto'
@@ -68,7 +72,7 @@ SYMBOL = SYMBOLS[0] if isinstance(SYMBOLS, list) else SYMBOLS
 TIMEFRAME = '1h'
 
 # Number of historical data points to fetch for analysis (e.g., 500)
-LIMIT = 1000
+LIMIT = 1500
 
 # Standard deviation threshold for the deviation signal E
 # User specified |E| > 2*sigma

@@ -6,7 +6,7 @@
 ![Next.js](https://img.shields.io/badge/next.js-14-black.svg)
 ![React Native](https://img.shields.io/badge/react--native-0.73-blue.svg)
 ![FastAPI](https://img.shields.io/badge/fastapi-0.109+-green.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![License](https://img.shields.io/badge/license-Proprietary-red.svg)
 
 ---
 
@@ -264,7 +264,7 @@ Contributions welcome! Areas for improvement:
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details
+Copyright (c) 2026 Manuel Mello. All rights reserved. See [LICENSE](LICENSE) for details.
 
 ---
 

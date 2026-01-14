@@ -116,7 +116,7 @@ def run_backtest(
         }
         
         for signal in ['BUY', 'SELL', 'HOLD']:
-            signal_df = df[df['signal'] == signal].copy()
+            signal_df = df[df['Signal'] == signal].copy()
             if len(signal_df) > 0:
                 results['signal_performance'][signal] = {
                     'count': len(signal_df),
@@ -160,13 +160,13 @@ def analyze_multiple_timeframes(
             if df is not None and len(df) > 0:
                 latest = df.iloc[-1]
                 results['timeframes'][tf] = {
-                    'signal': latest['signal'],
-                    'deviation': float(latest['deviation']),
-                    'volume_ratio': float(latest['volume_ratio']),
+                    'signal': latest['Signal'],
+                    'deviation': float(latest['E']),
+                    'volume_ratio': float(latest['Volume_Ratio']),
                     'trend': latest.get('trend', 'unknown')
                 }
-                signals.append(latest['signal'])
-                deviations.append(float(latest['deviation']))
+                signals.append(latest['Signal'])
+                deviations.append(float(latest['E']))
         
         # Calculate confluence
         if signals:

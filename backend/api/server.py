@@ -79,9 +79,9 @@ async def root():
     }
 
 
-@app.get("/api/analyze/{symbol}")
+@app.get("/api/analyze")
 async def analyze(
-    symbol: str,
+    symbol: str = Query(..., description="Trading pair"),
     timeframe: str = Query("1h", description="Timeframe (1h, 4h, 1d)"),
     days: int = Query(365, description="Historical days to fetch"),
     use_llm: bool = Query(False, description="Use LLM for professional analysis")
@@ -120,10 +120,10 @@ async def analyze(
             "timestamp": str(latest.name),
             "metrics": {
                 "price": float(latest['close']),
-                "vwap": float(latest['vwap']),
-                "deviation": float(latest['deviation']),
-                "volume_ratio": float(latest['volume_ratio']),
-                "signal": latest['signal'],
+                "vwap": float(latest['Z_prime']),
+                "deviation": float(latest['E']),
+                "volume_ratio": float(latest['Volume_Ratio']),
+                "signal": latest['Signal'],
                 "phase": float(latest.get('phase', 0)),
                 "cycle_position": latest.get('cycle_position', 'unknown'),
                 "trend": latest.get('trend', 'unknown'),
@@ -131,9 +131,9 @@ async def analyze(
             },
             "historical": {
                 "bars": len(df),
-                "buy_signals": int((df['signal'] == 'BUY').sum()),
-                "sell_signals": int((df['signal'] == 'SELL').sum()),
-                "hold_signals": int((df['signal'] == 'HOLD').sum())
+                "buy_signals": int((df['Signal'] == 'BUY').sum()),
+                "sell_signals": int((df['Signal'] == 'SELL').sum()),
+                "hold_signals": int((df['Signal'] == 'HOLD').sum())
             }
         }
         
@@ -183,9 +183,9 @@ async def batch_analyze(request: BatchAnalysisRequest):
                     results.append({
                         "symbol": symbol,
                         "price": float(latest['close']),
-                        "deviation": float(latest['deviation']),
-                        "signal": latest['signal'],
-                        "volume_ratio": float(latest['volume_ratio']),
+                        "deviation": float(latest['E']),
+                        "signal": latest['Signal'],
+                        "volume_ratio": float(latest['Volume_Ratio']),
                         "trend": latest.get('trend', 'unknown')
                     })
             except Exception as e:
@@ -200,7 +200,7 @@ async def batch_analyze(request: BatchAnalysisRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/backtest/{symbol}")
+@app.get("/api/backtest/{symbol:path}")
 async def backtest(
     symbol: str,
     timeframe: str = Query("1h", description="Timeframe"),
@@ -238,7 +238,7 @@ async def backtest(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/multi-timeframe/{symbol}")
+@app.get("/api/multi-timeframe/{symbol:path}")
 async def multi_timeframe(
     symbol: str,
     timeframes: str = Query("1h,4h,1d", description="Comma-separated timeframes")
@@ -299,7 +299,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@app.websocket("/ws/live/{symbol}")
+@app.websocket("/ws/live/{symbol:path}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     """
     WebSocket endpoint for real-time updates
@@ -319,9 +319,14 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                 "symbol": symbol,
                 "data": {
                     "price": float(latest['close']),
-                    "deviation": float(latest['deviation']),
-                    "signal": latest['signal'],
-                    "volume_ratio": float(latest['volume_ratio'])
+                    "vwap": float(latest['Z_prime']),
+                    "deviation": float(latest['E']),
+                    "signal": latest['Signal'],
+                    "volume_ratio": float(latest['Volume_Ratio']),
+                    "trend": latest.get('trend', 'unknown'),
+                    "regime": latest.get('regime', 'unknown'),
+                    "cycle_position": latest.get('cycle_position', 'unknown'),
+                    "phase": float(latest.get('Phase', 0))
                 }
             })
         
@@ -339,9 +344,14 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                     "timestamp": str(latest.name),
                     "data": {
                         "price": float(latest['close']),
-                        "deviation": float(latest['deviation']),
-                        "signal": latest['signal'],
-                        "volume_ratio": float(latest['volume_ratio'])
+                        "vwap": float(latest['Z_prime']),
+                        "deviation": float(latest['E']),
+                        "signal": latest['Signal'],
+                        "volume_ratio": float(latest['Volume_Ratio']),
+                        "trend": latest.get('trend', 'unknown'),
+                        "regime": latest.get('regime', 'unknown'),
+                        "cycle_position": latest.get('cycle_position', 'unknown'),
+                        "phase": float(latest.get('Phase', 0))
                     }
                 })
     
@@ -363,6 +373,6 @@ if __name__ == "__main__":
         "server:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        reload=False,
         log_level="info"
     )

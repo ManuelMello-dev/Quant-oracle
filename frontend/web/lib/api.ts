@@ -24,6 +24,12 @@ export interface AnalysisResponse {
     buy_signals: number
     sell_signals: number
     hold_signals: number
+    series: Array<{
+      time: string
+      price: number
+      vwap: number
+      deviation: number
+    }>
   }
   professional_analysis?: string
   analysis_method?: string

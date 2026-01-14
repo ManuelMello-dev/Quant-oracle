@@ -4,6 +4,19 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import api, { AnalysisResponse } from '@/lib/api'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  ReferenceLine
+} from 'recharts'
 
 export default function AnalyzePage() {
   const params = useParams()
@@ -101,17 +114,86 @@ export default function AnalyzePage() {
           </div>
         </div>
 
-        {/* Main Signal */}
-        <div className="metric-card mb-8 text-center">
-          <div className="text-6xl mb-4">{getSignalEmoji(metrics.signal)}</div>
-          <div className={`text-5xl font-bold mb-2 ${getSignalColor(metrics.signal)}`}>
-            {metrics.signal}
+        {/* Main Signal & Charts */}
+        <div className="grid lg:grid-cols-3 gap-8 mb-8">
+          <div className="metric-card text-center flex flex-col justify-center">
+            <div className="text-6xl mb-4">{getSignalEmoji(metrics.signal)}</div>
+            <div className={`text-5xl font-bold mb-2 ${getSignalColor(metrics.signal)}`}>
+              {metrics.signal}
+            </div>
+            <div className="text-xl text-gray-400">
+              {metrics.deviation < -2 && 'Strong undervaluation - Mean reversion likely'}
+              {metrics.deviation > 2 && 'Strong overvaluation - Correction likely'}
+              {Math.abs(metrics.deviation) <= 2 && 'Near equilibrium - Range-bound trading'}
+            </div>
           </div>
-          <div className="text-xl text-gray-400">
-            {metrics.deviation < -2 && 'Strong undervaluation - Mean reversion likely'}
-            {metrics.deviation > 2 && 'Strong overvaluation - Correction likely'}
-            {Math.abs(metrics.deviation) <= 2 && 'Near equilibrium - Range-bound trading'}
+
+          <div className="lg:col-span-2 metric-card p-4 h-[400px]">
+            <h3 className="text-lg font-semibold mb-4">Price vs. Equilibrium (Z')</h3>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={historical.series}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis 
+                  dataKey="time" 
+                  hide 
+                />
+                <YAxis 
+                  domain={['auto', 'auto']} 
+                  stroke="#9CA3AF"
+                  tickFormatter={(value) => `$${value.toLocaleString()}`}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151' }}
+                  itemStyle={{ color: '#F3F4F6' }}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="price" 
+                  stroke="#3B82F6" 
+                  strokeWidth={2} 
+                  dot={false} 
+                  name="Price"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="vwap" 
+                  stroke="#10B981" 
+                  strokeWidth={2} 
+                  strokeDasharray="5 5" 
+                  dot={false} 
+                  name="Equilibrium (Z')"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
+        </div>
+
+        {/* Deviation Chart */}
+        <div className="metric-card p-4 h-[300px] mb-8">
+          <h3 className="text-lg font-semibold mb-4">Deviation Measurement (E)</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={historical.series}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="time" hide />
+              <YAxis stroke="#9CA3AF" tickFormatter={(value) => `${value}σ`} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151' }}
+                itemStyle={{ color: '#F3F4F6' }}
+              />
+              <ReferenceLine y={2} stroke="#EF4444" strokeDasharray="3 3" label="Overvalued" />
+              <ReferenceLine y={-2} stroke="#10B981" strokeDasharray="3 3" label="Undervalued" />
+              <ReferenceLine y={0} stroke="#9CA3AF" />
+              <Area 
+                type="monotone" 
+                dataKey="deviation" 
+                stroke="#8B5CF6" 
+                fill="#8B5CF6" 
+                fillOpacity={0.1} 
+                name="Deviation (E)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Metrics Grid */}

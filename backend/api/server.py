@@ -133,7 +133,16 @@ async def analyze(
                 "bars": len(df),
                 "buy_signals": int((df['Signal'] == 'BUY').sum()),
                 "sell_signals": int((df['Signal'] == 'SELL').sum()),
-                "hold_signals": int((df['Signal'] == 'HOLD').sum())
+                "hold_signals": int((df['Signal'] == 'HOLD').sum()),
+                "series": [
+                    {
+                        "time": str(idx),
+                        "price": float(row['close']),
+                        "vwap": float(row['Z_prime']),
+                        "deviation": float(row['E'])
+                    }
+                    for idx, row in df.tail(100).iterrows()
+                ]
             }
         }
         

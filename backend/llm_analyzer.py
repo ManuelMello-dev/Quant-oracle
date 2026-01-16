@@ -1,81 +1,41 @@
-"""
-LLM-based Professional Analysis Engine
-Uses local Transformers model for cost-effective analysis
+"""LLM-based Professional Analysis Engine
+Uses OpenAI API for professional-grade analysis
 """
 
 import json
+import os
 from typing import Dict, List, Optional
 import pandas as pd
+from openai import OpenAI
 
-# Transformers integration (optional - graceful degradation)
+# Initialize OpenAI client
 try:
-    from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-    import torch
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    TRANSFORMERS_AVAILABLE = False
-    print("⚠️  Transformers not available. Install with: pip install transformers torch")
+    client = OpenAI()
+    OPENAI_AVAILABLE = True
+except Exception as e:
+    OPENAI_AVAILABLE = False
+    print(f"⚠️  OpenAI client not available: {e}")
 
 
 class LLMAnalyzer:
-    """Professional analysis using local LLM"""
+    """Professional analysis using OpenAI API"""
     
-    def __init__(self, model_name: str = "microsoft/Phi-3-mini-4k-instruct"):
+    def __init__(self, model_name: str = "gpt-4.1-mini"):
         """
-        Initialize LLM analyzer
+        Initialize LLM analyzer using OpenAI API
         
         Args:
-            model_name: HuggingFace model identifier
-                       Default: Phi-3-mini (3.8B params, runs on CPU/GPU)
+            model_name: OpenAI model identifier
+                       Default: gpt-4.1-mini (fast and cost-effective)
                        Alternatives: 
-                       - "microsoft/phi-2" (2.7B, faster)
-                       - "TinyLlama/TinyLlama-1.1B-Chat-v1.0" (1.1B, very fast)
+                       - "gpt-4.1-nano" (faster, lower cost)
+                       - "gpt-4" (most capable, higher cost)
         """
         self.model_name = model_name
-        self.model = None
-        self.tokenizer = None
-        self.pipeline = None
-        self.initialized = False
+        self.initialized = OPENAI_AVAILABLE
         
-        if not TRANSFORMERS_AVAILABLE:
-            print("❌ Transformers library not available")
-            return
-            
-        self._initialize_model()
-    
-    def _initialize_model(self):
-        """Load model and tokenizer"""
-        try:
-            print(f"🔄 Loading {self.model_name}...")
-            
-            # Use CPU by default (GPU if available)
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                trust_remote_code=True,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-                device_map="auto" if device == "cuda" else None
-            )
-            
-            # Create text generation pipeline
-            self.pipeline = pipeline(
-                "text-generation",
-                model=self.model,
-                tokenizer=self.tokenizer,
-                max_new_tokens=512,
-                temperature=0.7,
-                top_p=0.9,
-                do_sample=True
-            )
-            
-            self.initialized = True
-            print(f"✅ Model loaded on {device}")
-            
-        except Exception as e:
-            print(f"❌ Failed to load model: {e}")
-            self.initialized = False
+        if not OPENAI_AVAILABLE:
+            print("⚠️  OpenAI API not available. Using rule-based analysis.")
     
     def analyze_market_data(self, df: pd.DataFrame, symbol: str) -> Dict:
         """
@@ -98,11 +58,25 @@ class LLMAnalyzer:
         # Generate analysis prompt
         prompt = self._create_analysis_prompt(symbol, metrics)
         
-        # Generate analysis
+        # Generate analysis using OpenAI API
         try:
-            response = self.pipeline(prompt)[0]['generated_text']
-            # Extract only the generated part (after prompt)
-            analysis_text = response[len(prompt):].strip()
+            response = client.messages.create(
+                model=self.model_name,
+                max_tokens=512,
+                temperature=0.7,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a professional quantitative analyst specializing in cryptocurrency trading. Provide concise, actionable market insights based on technical analysis data."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+            
+            analysis_text = response.content[0].text.strip()
             
             return {
                 'symbol': symbol,
@@ -112,7 +86,7 @@ class LLMAnalyzer:
                 'method': 'llm'
             }
         except Exception as e:
-            print(f"❌ LLM generation failed: {e}")
+            print(f"⚠️  LLM generation failed: {e}. Using rule-based analysis.")
             return self._fallback_analysis(df, symbol)
     
     def _extract_metrics(self, df: pd.DataFrame, latest: pd.Series) -> Dict:
@@ -139,7 +113,7 @@ class LLMAnalyzer:
     
     def _create_analysis_prompt(self, symbol: str, metrics: Dict) -> str:
         """Create structured prompt for LLM"""
-        prompt = f"""You are a professional quantitative analyst. Analyze this trading data and provide actionable insights.
+        prompt = f"""Analyze this cryptocurrency trading data and provide professional insights:
 
 Symbol: {symbol}
 Current Price: ${metrics['price']:.4f}
@@ -149,16 +123,15 @@ Signal: {metrics['signal']}
 Volume Ratio: {metrics['volume_ratio']:.1f}%
 Trend: {metrics['trend']}
 Market Regime: {metrics['regime']}
+Phase Position: {metrics['phase']:.2f}°
 24h Change: {metrics['price_change_24h']:+.2f}%
+24h High: ${metrics['high_24h']:.4f}
+24h Low: ${metrics['low_24h']:.4f}
 
-Analysis Guidelines:
-1. Interpret the deviation (σ) - extreme values indicate mean reversion opportunities
-2. Assess signal quality based on volume and trend alignment
-3. Identify key support/resistance levels
-4. Provide risk assessment and position sizing guidance
-5. Give clear entry/exit recommendations
-
-Professional Analysis:"""
+Provide a concise professional analysis (2-3 sentences) covering:
+1. Current market position and deviation interpretation
+2. Trend and regime assessment
+3. Trading recommendation with risk considerations"""
         
         return prompt
     

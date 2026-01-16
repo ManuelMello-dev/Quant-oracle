@@ -108,6 +108,32 @@ LIMIT = 1500
 # User specified |E| > 2*sigma
 SIGMA_THRESHOLD = 2.0
 
+# Timeframe-aware sigma thresholds
+# Higher frequency = higher threshold (more noise filtering)
+TIMEFRAME_THRESHOLDS = {
+    '1m': 3.0,   # Extreme noise, scalping
+    '5m': 2.5,   # High noise, scalping
+    '15m': 2.0,  # Moderate noise, day trading
+    '30m': 1.9,  # Moderate noise, day trading
+    '1h': 1.8,   # Lower noise, swing trading
+    '2h': 1.7,   # Lower noise, swing trading
+    '4h': 1.5,   # Smooth data, position trading
+    '1d': 1.5,   # Very smooth, long-term
+    '1w': 1.5,   # Very smooth, long-term
+}
+
+def get_sigma_threshold(timeframe):
+    """
+    Get the appropriate sigma threshold for a given timeframe.
+    
+    Args:
+        timeframe: String like '5m', '1h', '4h', '1d'
+    
+    Returns:
+        float: Sigma threshold (e.g., 2.5 for 5m)
+    """
+    return TIMEFRAME_THRESHOLDS.get(timeframe, 2.0)  # Default 2.0σ
+
 # The period (in number of bars) for the VWAP calculation.
 # A longer period smooths the equilibrium.
 VWAP_PERIOD = 100

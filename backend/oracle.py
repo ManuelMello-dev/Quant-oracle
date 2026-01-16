@@ -281,8 +281,8 @@ def run_oracle_analysis(
     limit,
     vwap_period,
     fft_period,
-    sigma_threshold,
-    reversal_threshold_percent,
+    sigma_threshold=None,  # Now optional, will use timeframe-aware default
+    reversal_threshold_percent=0.25,
     enable_backtest=False,
     enable_trend_analysis=False,
     export_csv=False,
@@ -298,7 +298,7 @@ def run_oracle_analysis(
         limit: Number of bars to fetch
         vwap_period: VWAP calculation period
         fft_period: FFT analysis period
-        sigma_threshold: Deviation threshold
+        sigma_threshold: Deviation threshold (None = use timeframe-aware default)
         reversal_threshold_percent: Phase timing threshold
         enable_backtest: Run backtest analysis
         enable_trend_analysis: Add trend and regime detection
@@ -308,6 +308,12 @@ def run_oracle_analysis(
     Returns:
         Tuple of (dataframe, oracle_result, backtest_report)
     """
+    
+    # Use timeframe-aware threshold if not specified
+    if sigma_threshold is None:
+        from config import get_sigma_threshold
+        sigma_threshold = get_sigma_threshold(timeframe)
+        print(f"📊 Using timeframe-aware threshold: {sigma_threshold}σ for {timeframe}")
     
     # Fetch data from configured source
     data_df = fetch_ohlcv_data(exchange, symbol, timeframe, limit, source=data_source)

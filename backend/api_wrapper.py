@@ -13,7 +13,7 @@ from oracle import run_oracle_analysis
 from data_sources import fetch_ohlcv_data
 from config import (
     VWAP_PERIOD, FFT_PERIOD, SIGMA_THRESHOLD, 
-    REVERSAL_THRESHOLD_PERCENT
+    REVERSAL_THRESHOLD_PERCENT, get_sigma_threshold
 )
 VOLUME_THRESHOLD_PERCENT = 100  # Default if not in config
 
@@ -43,6 +43,9 @@ def analyze_symbol(symbol: str, timeframe: str = '1h', days: int = 365) -> Optio
         import ccxt
         exchange = ccxt.binance()
         
+        # Get timeframe-aware sigma threshold
+        sigma_threshold = get_sigma_threshold(timeframe)
+        
         # Run analysis (it fetches data internally and returns tuple)
         result = run_oracle_analysis(
             exchange=exchange,
@@ -51,7 +54,7 @@ def analyze_symbol(symbol: str, timeframe: str = '1h', days: int = 365) -> Optio
             limit=limit,
             vwap_period=VWAP_PERIOD,
             fft_period=FFT_PERIOD,
-            sigma_threshold=SIGMA_THRESHOLD,
+            sigma_threshold=sigma_threshold,  # Use timeframe-aware threshold
             reversal_threshold_percent=REVERSAL_THRESHOLD_PERCENT,
             enable_backtest=False,
             enable_trend_analysis=True,

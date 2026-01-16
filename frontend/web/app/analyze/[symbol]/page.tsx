@@ -24,6 +24,8 @@ export default function AnalyzePage() {
   const symbol = (params.symbol as string).replace('-', '/')
   const [useLLM, setUseLLM] = useState(false)
   const [timeframe, setTimeframe] = useState('1h')
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null)
+  const [loadingAI, setLoadingAI] = useState(false)
 
   const { data, error, isLoading, mutate } = useSWR<AnalysisResponse>(
     ['analyze', symbol, timeframe, useLLM],
@@ -110,6 +112,23 @@ export default function AnalyzePage() {
               className={useLLM ? 'btn-primary' : 'btn-secondary'}
             >
               {useLLM ? '🤖 AI On' : '🤖 AI Off'}
+            </button>
+            <button
+              onClick={async () => {
+                setLoadingAI(true)
+                try {
+                  const analysis = await api.advancedAnalysis(symbol, timeframe, 30, 100)
+                  setAiAnalysis(analysis)
+                } catch (error) {
+                  console.error('Failed to load AI analysis:', error)
+                } finally {
+                  setLoadingAI(false)
+                }
+              }}
+              className="btn-primary"
+              disabled={loadingAI}
+            >
+              {loadingAI ? '⏳ Loading...' : '🧠 Get AI Analysis'}
             </button>
           </div>
         </div>
@@ -260,6 +279,45 @@ export default function AnalyzePage() {
             </div>
           </div>
         </div>
+
+        {/* AI Analysis */}
+        {aiAnalysis?.ai_narrative && (
+          <div className="metric-card mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold flex items-center gap-2">
+                🤖 AI Analysis
+                <span className="text-sm text-gray-400">Monday's Tactical Assessment</span>
+              </h2>
+            </div>
+            <div className="prose prose-invert max-w-none">
+              <pre className="whitespace-pre-wrap text-gray-300 leading-relaxed font-sans">
+                {aiAnalysis.ai_narrative}
+              </pre>
+            </div>
+            {aiAnalysis.action_plan && (
+              <div className="mt-6 p-4 bg-oracle-dark/50 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold mb-3">📋 Action Plan</h3>
+                <div className="space-y-2 text-sm text-gray-300">
+                  {aiAnalysis.action_plan.immediate_action && (
+                    <div>
+                      <span className="font-semibold text-oracle-blue">Immediate:</span> {aiAnalysis.action_plan.immediate_action}
+                    </div>
+                  )}
+                  {aiAnalysis.action_plan.stop_loss && (
+                    <div>
+                      <span className="font-semibold text-oracle-red">Stop Loss:</span> ${aiAnalysis.action_plan.stop_loss.toFixed(2)}
+                    </div>
+                  )}
+                  {aiAnalysis.action_plan.targets && (
+                    <div>
+                      <span className="font-semibold text-oracle-green">Targets:</span> {JSON.stringify(aiAnalysis.action_plan.targets)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Professional Analysis */}
         {data.professional_analysis && (

@@ -33,6 +33,7 @@ export interface AnalysisResponse {
   }
   professional_analysis?: string
   analysis_method?: string
+  ai_narrative?: string
 }
 
 export interface BacktestResponse {
@@ -119,6 +120,18 @@ export const api = {
       symbols,
       timeframe,
       days
+    })
+    return response.data
+  },
+
+  async advancedAnalysis(
+    symbol: string,
+    timeframe: string = '1h',
+    days: number = 30,
+    budget: number = 100
+  ): Promise<any> {
+    const response = await axios.get(`${API_URL}/api/advanced-analysis`, {
+      params: { symbol, timeframe, days, budget }
     })
     return response.data
   },

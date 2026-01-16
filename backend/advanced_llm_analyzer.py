@@ -17,6 +17,13 @@ from datetime import datetime
 import json
 import os
 
+# Import LLM narrative generator
+try:
+    from llm_narrative_generator import LLMNarrativeGenerator
+    LLM_NARRATIVE_AVAILABLE = True
+except ImportError:
+    LLM_NARRATIVE_AVAILABLE = False
+
 
 class TradeHistory:
     """Manages user's trade history and positions"""
@@ -376,10 +383,37 @@ class AdvancedLLMAnalyzer:
             'final_message': self._build_final_message(is_entry_zone, deviation_signal, volume_confirmed, last_trade)
         }
         
+        # Generate AI narrative if available
+        ai_narrative = None
+        if LLM_NARRATIVE_AVAILABLE:
+            try:
+                generator = LLMNarrativeGenerator()
+                ai_narrative = generator.generate_analysis_narrative(
+                    {
+                        'raw_metrics': {
+                            'current_price': current_price,
+                            'equilibrium': Z_prime,
+                            'deviation': E,
+                            'volume_ratio': volume_ratio,
+                            'signal': signal,
+                            'confidence': confidence
+                        },
+                        'oracle_status': oracle_status,
+                        'action_plan': action_plan,
+                        'why_entry': why_entry,
+                        'position_comparison': position_comparison
+                    },
+                    symbol
+                )
+            except Exception as e:
+                print(f"⚠️  AI narrative generation failed: {e}")
+                ai_narrative = None
+        
         # Assemble complete analysis
         return {
             'symbol': symbol,
             'timestamp': datetime.now().isoformat(),
+            'ai_narrative': ai_narrative,
             'oracle_status': oracle_status,
             'why_entry': why_entry,
             'position_comparison': position_comparison,
@@ -435,6 +469,12 @@ class AdvancedLLMAnalyzer:
         output.append("\n" + "="*80)
         output.append(f"🔮 ORACLE ANALYSIS - {analysis['symbol']}")
         output.append("="*80 + "\n")
+        
+        # AI Narrative section
+        if analysis.get('ai_narrative'):
+            output.append("🤖 AI ANALYSIS\n")
+            output.append(analysis['ai_narrative'])
+            output.append("\n" + "-"*80 + "\n")
         
         # Why Entry section
         if analysis.get('why_entry'):

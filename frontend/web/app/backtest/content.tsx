@@ -41,7 +41,7 @@ export default function BacktestContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const timeframes = ['5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo', '3mo', '1y', '5y']
+  const timeframes = ['1h', '4h', '1d']
 
   useEffect(() => {
     const runBacktest = async () => {

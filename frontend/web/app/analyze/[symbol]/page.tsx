@@ -101,17 +101,9 @@ export default function AnalyzePage() {
               onChange={(e) => setTimeframe(e.target.value)}
               className="bg-oracle-dark border border-gray-700 rounded-lg px-4 py-2"
             >
-              <option value="5m">5 Minutes</option>
-              <option value="15m">15 Minutes</option>
-              <option value="30m">30 Minutes</option>
               <option value="1h">1 Hour</option>
               <option value="4h">4 Hours</option>
               <option value="1d">1 Day</option>
-              <option value="1w">1 Week</option>
-              <option value="1mo">1 Month</option>
-              <option value="3mo">3 Months</option>
-              <option value="1y">1 Year</option>
-              <option value="5y">5 Years</option>
             </select>
             <button
               onClick={() => setUseLLM(!useLLM)}

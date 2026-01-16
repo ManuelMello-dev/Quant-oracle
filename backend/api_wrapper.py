@@ -33,17 +33,9 @@ def analyze_symbol(symbol: str, timeframe: str = '1h', days: int = 365) -> Optio
     try:
         # Calculate limit based on timeframe and days
         timeframe_multipliers = {
-            '5m': days * 288,
-            '15m': days * 96,
-            '30m': days * 48,
             '1h': days * 24,
             '4h': days * 6,
-            '1d': days,
-            '1w': days // 7,
-            '1mo': days // 30,
-            '3mo': days // 90,
-            '1y': days // 365,
-            '5y': days // (365 * 5)
+            '1d': days
         }
         limit = timeframe_multipliers.get(timeframe, days * 24)
         

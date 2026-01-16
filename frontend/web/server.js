@@ -6,8 +6,8 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-const port = parseInt(process.env.PORT || '3000', 10);
-const hostname = process.env.HOSTNAME || 'localhost';
+const port = 3000; // Railway expects port 3000
+const hostname = '0.0.0.0'; // Listen on all interfaces
 
 app.prepare().then(() => {
   createServer((req, res) => {

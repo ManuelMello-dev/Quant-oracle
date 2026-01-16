@@ -17,6 +17,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from api_wrapper import analyze_symbol, run_backtest, analyze_multiple_timeframes
 from llm_analyzer import analyze_with_llm, LLMAnalyzer
+from entry_analyzer import EntryPointAnalyzer, analyze_entry_point
+from genesis_vocabulary import GenesisDriftVocabulary, generate_genesis_narrative
 import pandas as pd
 
 # Initialize FastAPI app
@@ -74,7 +76,17 @@ async def root():
             "backtest": "/api/backtest/{symbol}",
             "multi_timeframe": "/api/multi-timeframe/{symbol}",
             "batch": "/api/analyze/batch",
+            "entry_zones": "/api/entry-zones?symbol={symbol}",
+            "evaluate_entry": "/api/evaluate-entry",
+            "sigma_bands": "/api/sigma-bands?symbol={symbol}",
+            "genesis_state": "/api/genesis-state?symbol={symbol}",
             "websocket": "/ws/live/{symbol}"
+        },
+        "new_features": {
+            "entry_analysis": "Optimal entry zones with risk/reward analysis",
+            "genesis_vocabulary": "Philosophical market state narratives",
+            "sigma_bands": "Price levels at sigma deviations",
+            "user_entry_eval": "Evaluate your entry prices"
         }
     }
 
@@ -244,6 +256,192 @@ async def backtest(
             raise HTTPException(status_code=404, detail=f"Backtest failed for {symbol}")
         
         return results
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/entry-zones")
+async def entry_zones(
+    symbol: str = Query(..., description="Trading pair"),
+    timeframe: str = Query("1h", description="Timeframe"),
+    days: int = Query(365, description="Historical days"),
+    sigma_threshold: float = Query(2.0, description="Sigma threshold for signals")
+):
+    """
+    Get optimal entry zones for a symbol
+    
+    Args:
+        symbol: Trading pair (e.g., BTC/USD or BTC-USD)
+        timeframe: Candle timeframe
+        days: Historical data period
+        sigma_threshold: Sigma threshold for coherent signals
+        
+    Returns:
+        Optimal entry zones with risk/reward analysis
+    """
+    try:
+        # Convert URL-safe format
+        symbol = symbol.replace('-', '/')
+        
+        # Run core analysis
+        df = analyze_symbol(symbol, timeframe=timeframe, days=days)
+        
+        if df is None or len(df) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for {symbol}")
+        
+        # Get entry analysis
+        entry_analysis = analyze_entry_point(df, sigma_threshold=sigma_threshold)
+        
+        if 'error' in entry_analysis:
+            raise HTTPException(status_code=400, detail=entry_analysis['error'])
+        
+        return entry_analysis
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class EntryEvaluationRequest(BaseModel):
+    """Request model for user entry evaluation"""
+    symbol: str
+    user_entry_price: float
+    timeframe: str = "1h"
+    days: int = 365
+    sigma_threshold: float = 2.0
+
+
+@app.post("/api/evaluate-entry")
+async def evaluate_entry(request: EntryEvaluationRequest):
+    """
+    Evaluate a user's entry price
+    
+    Args:
+        request: Entry evaluation request with symbol and entry price
+        
+    Returns:
+        Entry quality assessment with risk/reward analysis
+    """
+    try:
+        # Convert URL-safe format
+        symbol = request.symbol.replace('-', '/')
+        
+        # Run core analysis
+        df = analyze_symbol(symbol, timeframe=request.timeframe, days=request.days)
+        
+        if df is None or len(df) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for {symbol}")
+        
+        # Get entry analysis with user evaluation
+        entry_analysis = analyze_entry_point(
+            df,
+            user_entry_price=request.user_entry_price,
+            sigma_threshold=request.sigma_threshold
+        )
+        
+        if 'error' in entry_analysis:
+            raise HTTPException(status_code=400, detail=entry_analysis['error'])
+        
+        return entry_analysis
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/sigma-bands")
+async def sigma_bands(
+    symbol: str = Query(..., description="Trading pair"),
+    timeframe: str = Query("1h", description="Timeframe"),
+    days: int = Query(365, description="Historical days"),
+    num_bands: int = Query(3, description="Number of sigma bands")
+):
+    """
+    Get sigma band price levels
+    
+    Args:
+        symbol: Trading pair (e.g., BTC/USD or BTC-USD)
+        timeframe: Candle timeframe
+        days: Historical data period
+        num_bands: Number of sigma bands above and below equilibrium
+        
+    Returns:
+        Sigma band price levels
+    """
+    try:
+        # Convert URL-safe format
+        symbol = symbol.replace('-', '/')
+        
+        # Run core analysis
+        df = analyze_symbol(symbol, timeframe=timeframe, days=days)
+        
+        if df is None or len(df) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for {symbol}")
+        
+        latest = df.iloc[-1]
+        Z_prime = float(latest['Z_prime'])
+        sigma = float(latest['Sigma'])
+        
+        if pd.isna(Z_prime) or pd.isna(sigma) or sigma == 0:
+            raise HTTPException(status_code=400, detail="Insufficient data for sigma bands calculation")
+        
+        # Calculate sigma bands
+        bands = EntryPointAnalyzer.calculate_sigma_bands(Z_prime, sigma, num_bands)
+        
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": str(latest.name),
+            "current_price": float(latest['close']),
+            "equilibrium_Z_prime": Z_prime,
+            "sigma": sigma,
+            "bands": bands
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/genesis-state")
+async def genesis_state(
+    symbol: str = Query(..., description="Trading pair"),
+    timeframe: str = Query("1h", description="Timeframe"),
+    days: int = Query(365, description="Historical days"),
+    sigma_threshold: float = Query(2.0, description="Sigma threshold")
+):
+    """
+    Get Genesis Drift market state narrative
+    
+    Args:
+        symbol: Trading pair (e.g., BTC/USD or BTC-USD)
+        timeframe: Candle timeframe
+        days: Historical data period
+        sigma_threshold: Sigma threshold for coherent signals
+        
+    Returns:
+        Genesis Drift philosophical market narrative
+    """
+    try:
+        # Convert URL-safe format
+        symbol = symbol.replace('-', '/')
+        
+        # Run core analysis
+        df = analyze_symbol(symbol, timeframe=timeframe, days=days)
+        
+        if df is None or len(df) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for {symbol}")
+        
+        # Generate Genesis Drift narrative
+        narrative = generate_genesis_narrative(df, sigma_threshold)
+        
+        if 'error' in narrative:
+            raise HTTPException(status_code=400, detail=narrative['error'])
+        
+        # Add symbol and timestamp
+        narrative['symbol'] = symbol
+        narrative['timeframe'] = timeframe
+        narrative['timestamp'] = str(df.iloc[-1].name)
+        
+        return narrative
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

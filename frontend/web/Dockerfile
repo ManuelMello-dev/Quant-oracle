@@ -13,4 +13,5 @@ FROM base
 COPY --from=build /usr/src/app /usr/src/app
 WORKDIR /usr/src/app
 EXPOSE 3000
-CMD [ "sh", "-c", "pnpm start -- -p ${PORT:-3000}" ]
+ENV PORT=3000
+CMD ["pnpm", "start"]

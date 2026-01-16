@@ -72,17 +72,19 @@ async def root():
         "status": "online",
         "service": "Quant Oracle API",
         "version": "1.0.0",
-        "endpoints": {
-            "analysis": "/api/analyze/{symbol}",
-            "backtest": "/api/backtest/{symbol}",
-            "multi_timeframe": "/api/multi-timeframe/{symbol}",
-            "batch": "/api/analyze/batch",
-            "entry_zones": "/api/entry-zones?symbol={symbol}",
-            "evaluate_entry": "/api/evaluate-entry",
-            "sigma_bands": "/api/sigma-bands?symbol={symbol}",
-            "genesis_state": "/api/genesis-state?symbol={symbol}",
-            "websocket": "/ws/live/{symbol}"
-        },
+    "endpoints": {
+        "analysis": "/api/analyze/{symbol}",
+        "advanced_analysis": "/api/advanced-analysis?symbol={symbol}",
+        "record_trade": "/api/record-trade",
+        "backtest": "/api/backtest/{symbol}",
+        "multi_timeframe": "/api/multi-timeframe/{symbol}",
+        "batch": "/api/analyze/batch",
+        "entry_zones": "/api/entry-zones?symbol={symbol}",
+        "evaluate_entry": "/api/evaluate-entry",
+        "sigma_bands": "/api/sigma-bands?symbol={symbol}",
+        "genesis_state": "/api/genesis-state?symbol={symbol}",
+        "websocket": "/ws/live/{symbol}"
+    },
         "new_features": {
             "entry_analysis": "Optimal entry zones with risk/reward analysis",
             "genesis_vocabulary": "Philosophical market state narratives",
@@ -611,7 +613,101 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@app.websocket("/ws/live/{symbol:path}")
+@app.get("/api/advanced-analysis")
+async def advanced_analysis_endpoint(
+    symbol: str,
+    timeframe: str = "1h",
+    days: int = 30,
+    budget: float = 100.0
+):
+    """
+    Get advanced contextual analysis with AI narrative
+    
+    Args:
+        symbol: Trading pair (e.g., BTC-USD or BTC/USD)
+        timeframe: Candle interval (default: 1h)
+        days: Historical data period (default: 30)
+        budget: Trading budget in USD (default: 100.0)
+    
+    Returns:
+        Comprehensive analysis with AI narrative, action plan, and position tracking
+    """
+    try:
+        # Import advanced analyzer
+        import sys
+        sys.path.insert(0, '/home/ubuntu/Quant-oracle/backend')
+        from advanced_llm_analyzer import AdvancedLLMAnalyzer
+        
+        # Normalize symbol format
+        normalized_symbol = symbol.replace('-', '/')
+        
+        # Get market data
+        df = analyze_symbol(normalized_symbol, timeframe=timeframe, days=days)
+        
+        if df is None or len(df) == 0:
+            return {"error": f"No data available for {symbol}"}
+        
+        # Generate advanced analysis
+        analyzer = AdvancedLLMAnalyzer(use_local_llm=False, use_openai=True)
+        analysis = analyzer.generate_actionable_analysis(df, normalized_symbol, budget=budget)
+        
+        return analysis
+        
+    except Exception as e:
+        print(f"Error in advanced analysis: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
+
+
+@app.post("/api/record-trade")
+async def record_trade_endpoint(trade_data: dict):
+    """
+    Record a trade for history tracking
+    
+    Args:
+        trade_data: Dict with symbol, entry, exit, quantity, profit_pct
+    
+    Returns:
+        Confirmation of trade recording
+    """
+    try:
+        # Import advanced analyzer for trade history
+        import sys
+        sys.path.insert(0, '/home/ubuntu/Quant-oracle/backend')
+        from advanced_llm_analyzer import TradeHistory
+        
+        history = TradeHistory()
+        
+        symbol = trade_data.get('symbol', '').replace('-', '/')
+        entry = trade_data.get('entry')
+        exit_price = trade_data.get('exit')
+        quantity = trade_data.get('quantity')
+        profit_pct = trade_data.get('profit_pct')
+        
+        if not symbol or entry is None:
+            return {"error": "Missing required fields: symbol, entry"}
+        
+        history.record_trade(symbol, entry, exit_price, quantity, profit_pct)
+        
+        return {
+            "status": "success",
+            "message": f"Trade recorded for {symbol}",
+            "trade": {
+                "symbol": symbol,
+                "entry": entry,
+                "exit": exit_price,
+                "quantity": quantity,
+                "profit_pct": profit_pct
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error recording trade: {e}")
+        return {"error": str(e)}
+
+
+@app.websocket("/ws/live/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     """
     WebSocket endpoint for real-time updates

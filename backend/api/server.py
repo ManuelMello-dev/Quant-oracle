@@ -124,10 +124,12 @@ async def analyze(
                 "deviation": float(latest['E']),
                 "volume_ratio": float(latest['Volume_Ratio']),
                 "signal": latest['Signal'],
-                "phase": float(latest.get('phase', 0)),
-                "cycle_position": latest.get('cycle_position', 'unknown'),
-                "trend": latest.get('trend', 'unknown'),
-                "regime": latest.get('regime', 'unknown')
+                "phase": float(latest.get('Phase_Rad', 0)),
+                "cycle_position": latest.get('Phase_Context', 'unknown'),
+                "trend": latest.get('Trend_Consensus', 'unknown'),
+                "regime": latest.get('Market_Regime', 'unknown'),
+                "coherence": float(latest.get('Spectral_Power', 0)),
+                "confidence": latest.get('Confidence', 'unknown')
             },
             "historical": {
                 "bars": len(df),

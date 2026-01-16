@@ -119,13 +119,13 @@ class LLMAnalyzer:
         """Extract key metrics for analysis"""
         return {
             'price': float(latest['close']),
-            'vwap': float(latest['vwap']),
-            'deviation': float(latest['deviation']),
-            'volume_ratio': float(latest['volume_ratio']),
-            'signal': latest['signal'],
-            'phase': float(latest.get('phase', 0)),
-            'trend': latest.get('trend', 'unknown'),
-            'regime': latest.get('regime', 'unknown'),
+            'vwap': float(latest['Z_prime']),
+            'deviation': float(latest['E']),
+            'volume_ratio': float(latest['Volume_Ratio']),
+            'signal': latest['Signal'],
+            'phase': float(latest.get('Phase_Rad', 0)),
+            'trend': latest.get('Trend_Consensus', 'unknown'),
+            'regime': latest.get('Market_Regime', 'unknown'),
             
             # Historical context
             'price_change_24h': float((latest['close'] / df.iloc[-24]['close'] - 1) * 100) if len(df) >= 24 else 0,
@@ -133,8 +133,8 @@ class LLMAnalyzer:
             'low_24h': float(df.tail(24)['low'].min()) if len(df) >= 24 else float(latest['low']),
             
             # Signal statistics
-            'buy_signals_recent': int((df.tail(100)['signal'] == 'BUY').sum()),
-            'sell_signals_recent': int((df.tail(100)['signal'] == 'SELL').sum()),
+            'buy_signals_recent': int((df.tail(100)['Signal'] == 'BUY').sum()),
+            'sell_signals_recent': int((df.tail(100)['Signal'] == 'SELL').sum()),
         }
     
     def _create_analysis_prompt(self, symbol: str, metrics: Dict) -> str:
@@ -189,20 +189,20 @@ Professional Analysis:"""
             analysis_parts.append(f"Below-average volume ({vol:.0f}%) - wait for confirmation.")
         
         # Trend alignment
-        trend = metrics['trend']
-        signal = metrics['signal']
-        if trend == 'uptrend' and signal == 'BUY':
+        trend = metrics['trend'].lower() if isinstance(metrics['trend'], str) else 'unknown'
+        signal = metrics['signal'].upper() if isinstance(metrics['signal'], str) else 'HOLD'
+        if 'uptrend' in trend and signal == 'BUY':
             analysis_parts.append("Signal aligns with uptrend - high probability setup.")
-        elif trend == 'downtrend' and signal == 'SELL':
+        elif 'downtrend' in trend and signal == 'SELL':
             analysis_parts.append("Signal aligns with downtrend - high probability setup.")
-        elif trend == 'sideways':
-            analysis_parts.append("Sideways market - mean reversion strategy optimal.")
+        elif 'ranging' in trend or 'sideways' in trend:
+            analysis_parts.append("Ranging market - mean reversion strategy optimal.")
         
         # Risk assessment
-        regime = metrics['regime']
-        if regime == 'volatile':
+        regime = metrics['regime'].lower() if isinstance(metrics['regime'], str) else 'unknown'
+        if 'volatile' in regime:
             analysis_parts.append("⚠️  High volatility - reduce position size by 50%.")
-        elif regime == 'trending':
+        elif 'trending' in regime:
             analysis_parts.append("Trending market - consider trend-following stops.")
         
         # Recommendation
@@ -278,20 +278,24 @@ if __name__ == "__main__":
     import numpy as np
     dates = pd.date_range(start='2024-01-01', periods=100, freq='1h')
     sample_df = pd.DataFrame({
-        'timestamp': dates,
         'open': np.random.randn(100).cumsum() + 100,
         'high': np.random.randn(100).cumsum() + 101,
         'low': np.random.randn(100).cumsum() + 99,
         'close': np.random.randn(100).cumsum() + 100,
         'volume': np.random.randint(1000, 10000, 100),
-        'vwap': np.random.randn(100).cumsum() + 100,
-        'deviation': np.random.randn(100) * 2,
-        'volume_ratio': np.random.randint(50, 150, 100),
-        'signal': np.random.choice(['BUY', 'SELL', 'HOLD'], 100),
-        'trend': 'uptrend',
-        'regime': 'trending'
-    })
+    }, index=dates)
+    
+    # Add required columns
+    sample_df['Z_prime'] = sample_df['close'].rolling(20).mean()
+    sample_df['E'] = (sample_df['close'] - sample_df['Z_prime']) / sample_df['close'].std()
+    sample_df['Volume_Ratio'] = 100
+    sample_df['Signal'] = 'BUY'
+    sample_df['Phase_Rad'] = np.random.rand(100) * 2 * np.pi
+    sample_df['Trend_Consensus'] = 'Uptrend'
+    sample_df['Market_Regime'] = 'Trending'
+    sample_df['Confidence'] = 'High'
     
     # Test analysis
-    analysis = analyze_with_llm(sample_df, 'BTC/USD')
-    print(LLMAnalyzer().generate_report(analysis))
+    analyzer = LLMAnalyzer()
+    result = analyzer.analyze_market_data(sample_df, 'BTC/USD')
+    print(analyzer.generate_report(result))

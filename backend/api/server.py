@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from api_wrapper import analyze_symbol, run_backtest, analyze_multiple_timeframes
 from llm_analyzer import analyze_with_llm, LLMAnalyzer
+from advanced_llm_analyzer import AdvancedLLMAnalyzer, analyze_with_advanced_llm
 from entry_analyzer import EntryPointAnalyzer, analyze_entry_point
 from genesis_vocabulary import GenesisDriftVocabulary, generate_genesis_narrative
 import pandas as pd
@@ -476,6 +477,108 @@ async def multi_timeframe(
             raise HTTPException(status_code=404, detail=f"Multi-timeframe analysis failed for {symbol}")
         
         return results
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/advanced-analysis")
+async def advanced_analysis(
+    symbol: str = Query(..., description="Trading pair"),
+    timeframe: str = Query("1h", description="Timeframe"),
+    days: int = Query(30, description="Historical days"),
+    budget: float = Query(100.0, description="Trading budget in USD")
+):
+    """
+    Get advanced contextual trading analysis with actionable recommendations
+    
+    This endpoint provides:
+    - Personalized action plans with specific quantities and prices
+    - Position tracking and trade history
+    - Staged entry recommendations (50%/25%/25%)
+    - Stop loss and target calculations
+    - "Why this is your entry" analysis
+    - Position comparison with previous trades
+    
+    Args:
+        symbol: Trading pair (e.g., BTC/USD or BTC-USD)
+        timeframe: Candle timeframe
+        days: Historical data period
+        budget: Trading budget for position sizing
+        
+    Returns:
+        Comprehensive contextual analysis with actionable trading plan
+    """
+    try:
+        # Convert URL-safe format
+        symbol = symbol.replace('-', '/')
+        
+        # Run core analysis
+        df = analyze_symbol(symbol, timeframe=timeframe, days=days)
+        
+        if df is None or len(df) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for {symbol}")
+        
+        # Generate advanced analysis
+        analyzer = AdvancedLLMAnalyzer(use_local_llm=False)  # Use rule-based for speed
+        analysis = analyzer.generate_actionable_analysis(df, symbol)
+        
+        if 'error' in analysis:
+            raise HTTPException(status_code=400, detail=analysis['error'])
+        
+        return analysis
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class TradeRecordRequest(BaseModel):
+    """Request model for recording a trade"""
+    symbol: str
+    entry: float
+    exit: Optional[float] = None
+    quantity: float = 0
+    profit_pct: Optional[float] = None
+
+
+@app.post("/api/record-trade")
+async def record_trade(request: TradeRecordRequest):
+    """
+    Record a trade in the user's history for contextual analysis
+    
+    Args:
+        request: Trade record with entry, exit, quantity, profit
+        
+    Returns:
+        Confirmation of trade recorded
+    """
+    try:
+        from advanced_llm_analyzer import TradeHistory
+        
+        # Convert URL-safe format
+        symbol = request.symbol.replace('-', '/')
+        
+        # Record trade
+        history = TradeHistory()
+        history.add_trade(
+            symbol=symbol,
+            entry=request.entry,
+            exit=request.exit,
+            quantity=request.quantity,
+            profit_pct=request.profit_pct
+        )
+        
+        return {
+            "status": "success",
+            "message": f"Trade recorded for {symbol}",
+            "trade": {
+                "symbol": symbol,
+                "entry": request.entry,
+                "exit": request.exit,
+                "quantity": request.quantity,
+                "profit_pct": request.profit_pct
+            }
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

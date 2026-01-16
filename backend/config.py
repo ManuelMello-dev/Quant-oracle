@@ -44,6 +44,21 @@ COINGECKO_SYMBOL_MAP = {
     'SHIB/USD': 'shiba-inu',
     'LTC/USD': 'litecoin',
     'BCH/USD': 'bitcoin-cash',
+    'BNB/USD': 'binancecoin',
+    'ATOM/USD': 'cosmos',
+    'ALGO/USD': 'algorand',
+    'FIL/USD': 'filecoin',
+    'NEAR/USD': 'near',
+    'AAVE/USD': 'aave',
+    'CRV/USD': 'curve-dao-token',
+    'SAND/USD': 'the-sandbox',
+    'MANA/USD': 'decentraland',
+    'APE/USD': 'apecoin',
+    'LDO/USD': 'lido-dao',
+    'ARB/USD': 'arbitrum',
+    'OP/USD': 'optimism',
+    'IMX/USD': 'immutable-x',
+    'RNDR/USD': 'render-token',
 }
 
 # Symbol mapping for CoinMarketCap (symbol -> ticker)
@@ -63,6 +78,21 @@ CMC_SYMBOL_MAP = {
     'SHIB/USD': 'SHIB',
     'LTC/USD': 'LTC',
     'BCH/USD': 'BCH',
+    'BNB/USD': 'BNB',
+    'ATOM/USD': 'ATOM',
+    'ALGO/USD': 'ALGO',
+    'FIL/USD': 'FIL',
+    'NEAR/USD': 'NEAR',
+    'AAVE/USD': 'AAVE',
+    'CRV/USD': 'CRV',
+    'SAND/USD': 'SAND',
+    'MANA/USD': 'MANA',
+    'APE/USD': 'APE',
+    'LDO/USD': 'LDO',
+    'ARB/USD': 'ARB',
+    'OP/USD': 'OP',
+    'IMX/USD': 'IMX',
+    'RNDR/USD': 'RNDR',
 }
 
 # Legacy support - if SYMBOL is used, it will be converted to SYMBOLS

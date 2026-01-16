@@ -371,12 +371,11 @@ if __name__ == '__main__':
     # If no command line symbols, use config
     if not symbols_to_analyze:
         if isinstance(SYMBOLS, list):
-            symbols_to_analyze = SYMBOLS[:3]  # Max 3 symbols
+            symbols_to_analyze = SYMBOLS  # Analyze all configured symbols
         else:
             symbols_to_analyze = [SYMBOLS]
     
-    # Limit to 3 symbols
-    symbols_to_analyze = symbols_to_analyze[:3]
+    # No artificial limit - analyze all requested symbols
     
     try:
         validate_config()

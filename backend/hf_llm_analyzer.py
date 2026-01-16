@@ -1,68 +1,72 @@
-"""LLM-based Professional Analysis Engine
-Uses OpenAI API for professional-grade analysis
+"""
+Hugging Face LLM Analyzer for Quant Oracle
+Uses local Hugging Face models for professional market analysis (no API calls)
 """
 
-import json
-import os
-from typing import Dict, List, Optional
 import pandas as pd
-from openai import OpenAI
+import numpy as np
+from typing import Dict, Optional
+import warnings
+warnings.filterwarnings('ignore')
 
-# Try to import HuggingFace analyzer first (preferred - no API calls)
+# Try to import transformers
 try:
-    from hf_llm_analyzer import HuggingFaceLLMAnalyzer
-    HF_AVAILABLE = True
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    import torch
+    TRANSFORMERS_AVAILABLE = True
 except ImportError:
-    HF_AVAILABLE = False
-    print("⚠️  HuggingFace analyzer not available")
-
-# Initialize OpenAI client as fallback
-try:
-    client = OpenAI()
-    OPENAI_AVAILABLE = True
-except Exception as e:
-    OPENAI_AVAILABLE = False
-    print(f"⚠️  OpenAI client not available: {e}")
+    TRANSFORMERS_AVAILABLE = False
+    print("⚠️  transformers not installed. Install with: pip install transformers torch")
 
 
-class LLMAnalyzer:
-    """Professional analysis using local HuggingFace models (preferred) or OpenAI API (fallback)"""
+class HuggingFaceLLMAnalyzer:
+    """Professional analysis using local Hugging Face models"""
     
-    def __init__(self, model_name: str = "auto", use_hf: bool = True):
+    def __init__(self, model_name: str = "Qwen/Qwen2.5-3B-Instruct"):
         """
-        Initialize LLM analyzer
+        Initialize HuggingFace LLM analyzer with local model
         
         Args:
-            model_name: Model identifier
-                       "auto" - Use HuggingFace if available, else OpenAI
-                       "Qwen/Qwen2.5-3B-Instruct" - Use specific HF model
-                       "gpt-4.1-mini" - Use OpenAI model
-            use_hf: Prefer HuggingFace models over OpenAI (default: True)
+            model_name: Hugging Face model identifier
+                       Default: Qwen/Qwen2.5-3B-Instruct (3B params, efficient)
+                       Alternatives: 
+                       - "Qwen/Qwen3-0.6B" (smallest, fastest)
+                       - "Qwen/Qwen2.5-1.5B-Instruct" (small, balanced)
+                       - "meta-llama/Llama-3.1-8B-Instruct" (larger, more capable)
         """
         self.model_name = model_name
-        self.use_hf = use_hf
-        self.hf_analyzer = None
         self.initialized = False
+        self.model = None
+        self.tokenizer = None
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        # Try HuggingFace first if preferred
-        if use_hf and HF_AVAILABLE and (model_name == "auto" or "Qwen" in model_name or "llama" in model_name.lower()):
-            try:
-                hf_model = "Qwen/Qwen2.5-3B-Instruct" if model_name == "auto" else model_name
-                print(f"🤖 Using HuggingFace model: {hf_model} (no API calls)")
-                self.hf_analyzer = HuggingFaceLLMAnalyzer(hf_model)
-                self.initialized = self.hf_analyzer.initialized
-                if self.initialized:
-                    return
-            except Exception as e:
-                print(f"⚠️  HuggingFace initialization failed: {e}")
+        if not TRANSFORMERS_AVAILABLE:
+            print("⚠️  Transformers library not available. Using rule-based analysis.")
+            return
         
-        # Fallback to OpenAI
-        if OPENAI_AVAILABLE:
-            self.model_name = "gpt-4.1-mini" if model_name == "auto" else model_name
+        # Initialize model (lazy loading)
+        try:
+            print(f"🤖 Loading {model_name} model...")
+            print(f"   Device: {self.device}")
+            
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+                device_map="auto" if self.device == "cuda" else None,
+                low_cpu_mem_usage=True
+            )
+            
+            if self.device == "cpu":
+                self.model = self.model.to(self.device)
+            
             self.initialized = True
-            print(f"🤖 Using OpenAI model: {self.model_name} (API calls)")
-        else:
-            print("⚠️  No LLM available. Using rule-based analysis.")
+            print(f"✅ Model loaded successfully on {self.device}")
+            
+        except Exception as e:
+            print(f"⚠️  Failed to load model: {e}")
+            print("   Falling back to rule-based analysis")
+            self.initialized = False
     
     def analyze_market_data(self, df: pd.DataFrame, symbol: str) -> Dict:
         """
@@ -78,47 +82,66 @@ class LLMAnalyzer:
         if not self.initialized:
             return self._fallback_analysis(df, symbol)
         
-        # Extract key metrics
+        # Extract metrics
         latest = df.iloc[-1]
         metrics = self._extract_metrics(df, latest)
         
-        # Generate analysis prompt
+        # Create prompt
         prompt = self._create_analysis_prompt(symbol, metrics)
         
-        # Use HuggingFace if available
-        if self.hf_analyzer and self.hf_analyzer.initialized:
-            return self.hf_analyzer.analyze_market_data(df, symbol)
-        
-        # Generate analysis using OpenAI API
+        # Generate analysis using HuggingFace model
         try:
-            response = client.messages.create(
-                model=self.model_name,
-                max_tokens=512,
-                temperature=0.7,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a professional quantitative analyst specializing in cryptocurrency trading. Provide concise, actionable market insights based on technical analysis data."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            
-            analysis_text = response.content[0].text.strip()
+            analysis_text = self._generate_with_model(prompt)
             
             return {
                 'symbol': symbol,
                 'analysis': analysis_text,
                 'metrics': metrics,
                 'model': self.model_name,
-                'method': 'openai-api'
+                'method': 'huggingface-local'
             }
         except Exception as e:
             print(f"⚠️  LLM generation failed: {e}. Using rule-based analysis.")
             return self._fallback_analysis(df, symbol)
+    
+    def _generate_with_model(self, prompt: str, max_new_tokens: int = 256) -> str:
+        """Generate text using the loaded model"""
+        
+        # Format prompt for chat models
+        messages = [
+            {"role": "system", "content": "You are a professional quantitative analyst specializing in cryptocurrency trading. Provide concise, actionable market insights based on technical analysis data."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        # Tokenize
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.device)
+        
+        # Generate
+        with torch.no_grad():
+            generated_ids = self.model.generate(
+                **model_inputs,
+                max_new_tokens=max_new_tokens,
+                do_sample=True,
+                temperature=0.7,
+                top_p=0.9,
+                pad_token_id=self.tokenizer.eos_token_id
+            )
+        
+        # Decode
+        generated_ids = [
+            output_ids[len(input_ids):] 
+            for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+        
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        
+        return response.strip()
     
     def _extract_metrics(self, df: pd.DataFrame, latest: pd.Series) -> Dict:
         """Extract key metrics for analysis"""
@@ -154,15 +177,12 @@ Signal: {metrics['signal']}
 Volume Ratio: {metrics['volume_ratio']:.1f}%
 Trend: {metrics['trend']}
 Market Regime: {metrics['regime']}
-Phase Position: {metrics['phase']:.2f}°
 24h Change: {metrics['price_change_24h']:+.2f}%
-24h High: ${metrics['high_24h']:.4f}
-24h Low: ${metrics['low_24h']:.4f}
 
 Provide a concise professional analysis (2-3 sentences) covering:
 1. Current market position and deviation interpretation
-2. Trend and regime assessment
-3. Trading recommendation with risk considerations"""
+2. Signal strength and volume confirmation
+3. Actionable recommendation with risk assessment"""
         
         return prompt
     
@@ -171,7 +191,6 @@ Provide a concise professional analysis (2-3 sentences) covering:
         latest = df.iloc[-1]
         metrics = self._extract_metrics(df, latest)
         
-        # Rule-based interpretation
         analysis_parts = []
         
         # Deviation analysis
@@ -235,7 +254,7 @@ Provide a concise professional analysis (2-3 sentences) covering:
         """Format analysis as readable report"""
         report = f"""
 {'='*80}
-PROFESSIONAL MARKET ANALYSIS - {analysis['symbol']}
+QUANT ORACLE ANALYSIS: {analysis['symbol']}
 {'='*80}
 
 CURRENT METRICS:
@@ -258,9 +277,9 @@ Generated by: {analysis['model']} ({analysis['method']})
         return report
 
 
-def analyze_with_llm(df: pd.DataFrame, symbol: str, model_name: Optional[str] = None) -> Dict:
+def analyze_with_hf_llm(df: pd.DataFrame, symbol: str, model_name: Optional[str] = None) -> Dict:
     """
-    Convenience function for LLM analysis
+    Convenience function for HuggingFace LLM analysis
     
     Args:
         df: DataFrame with market data and indicators
@@ -270,13 +289,13 @@ def analyze_with_llm(df: pd.DataFrame, symbol: str, model_name: Optional[str] = 
     Returns:
         Analysis dictionary
     """
-    analyzer = LLMAnalyzer(model_name=model_name) if model_name else LLMAnalyzer()
+    analyzer = HuggingFaceLLMAnalyzer(model_name) if model_name else HuggingFaceLLMAnalyzer()
     return analyzer.analyze_market_data(df, symbol)
 
 
 if __name__ == "__main__":
     # Test with sample data
-    print("Testing LLM Analyzer...")
+    print("Testing HuggingFace LLM Analyzer...")
     
     # Create sample data
     import numpy as np
@@ -287,19 +306,17 @@ if __name__ == "__main__":
         'low': np.random.randn(100).cumsum() + 99,
         'close': np.random.randn(100).cumsum() + 100,
         'volume': np.random.randint(1000, 10000, 100),
+        'Z_prime': np.random.randn(100).cumsum() + 100,
+        'E': np.random.randn(100) * 2,
+        'Volume_Ratio': np.random.uniform(0.5, 1.5, 100),
+        'Signal': np.random.choice(['BUY', 'SELL', 'HOLD'], 100),
+        'Phase_Rad': np.random.uniform(0, 2*np.pi, 100),
+        'Trend_Consensus': np.random.choice(['Uptrend', 'Downtrend', 'Ranging'], 100),
+        'Market_Regime': np.random.choice(['Trending', 'Ranging', 'Volatile'], 100),
     }, index=dates)
     
-    # Add required columns
-    sample_df['Z_prime'] = sample_df['close'].rolling(20).mean()
-    sample_df['E'] = (sample_df['close'] - sample_df['Z_prime']) / sample_df['close'].std()
-    sample_df['Volume_Ratio'] = 100
-    sample_df['Signal'] = 'BUY'
-    sample_df['Phase_Rad'] = np.random.rand(100) * 2 * np.pi
-    sample_df['Trend_Consensus'] = 'Uptrend'
-    sample_df['Market_Regime'] = 'Trending'
-    sample_df['Confidence'] = 'High'
+    # Test analyzer
+    analyzer = HuggingFaceLLMAnalyzer()
+    analysis = analyzer.analyze_market_data(sample_df, 'BTC/USD')
     
-    # Test analysis
-    analyzer = LLMAnalyzer()
-    result = analyzer.analyze_market_data(sample_df, 'BTC/USD')
-    print(analyzer.generate_report(result))
+    print("\n" + analyzer.generate_report(analysis))

@@ -374,14 +374,17 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
 if __name__ == "__main__":
     import uvicorn
     
+    # Get port from environment variable or default to 8000
+    port = int(os.getenv('PORT', 8000))
+    
     print("🚀 Starting Quant Oracle API Server...")
-    print("📊 Endpoints available at http://localhost:8000")
-    print("📚 API docs at http://localhost:8000/docs")
+    print(f"📊 Endpoints available at http://0.0.0.0:{port}")
+    print(f"📚 API docs at http://0.0.0.0:{port}/docs")
     
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=False,
         log_level="info"
     )

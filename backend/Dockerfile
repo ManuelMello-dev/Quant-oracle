@@ -17,9 +17,10 @@ COPY . .
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV PORT=3000
 
 # Expose the port the app runs on
-EXPOSE 8000
+EXPOSE 3000
 
 # Command to run the application
 CMD ["python", "api/server.py"]

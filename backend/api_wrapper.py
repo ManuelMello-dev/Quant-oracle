@@ -23,16 +23,21 @@ def analyze_symbol(symbol: str, timeframe: str = '1h', days: int = 365) -> Optio
     Analyze a trading symbol with all indicators
     
     Args:
-        symbol: Trading pair (e.g., 'BTC/USD')
-        timeframe: Candle timeframe ('1h', '4h', '1d')
+        symbol: Trading pair (e.g., 'BTC/USD' or 'BTC-USD')
+        timeframe: Candle timeframe ('5m', '15m', '1h', '4h', '1d')
         days: Historical days to fetch
         
     Returns:
         DataFrame with OHLCV + indicators, or None if failed
     """
     try:
+        # Convert symbol format: BTC-USD -> BTC/USD (backend uses slash format)
+        symbol = symbol.replace('-', '/')
+        
         # Calculate limit based on timeframe and days
         timeframe_multipliers = {
+            '5m': days * 288,  # 288 5-min bars per day
+            '15m': days * 96,  # 96 15-min bars per day
             '1h': days * 24,
             '4h': days * 6,
             '1d': days

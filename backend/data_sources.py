@@ -47,8 +47,8 @@ def fetch_ohlcv_cmc(symbol, timeframe, limit):
     end_date = datetime.now()
     
     # CMC provides daily data, so calculate days needed
-    if timeframe in ['1h', '4h']:
-        # For hourly timeframes, we'll get daily data and user will need to understand limitation
+    if timeframe in ['5m', '15m', '1h', '4h']:
+        # For intraday timeframes, we'll get daily data and user will need to understand limitation
         days_needed = max(limit // 24, limit)  # Rough estimate
     elif timeframe == '1d':
         days_needed = limit
@@ -101,10 +101,10 @@ def fetch_ohlcv_cmc(symbol, timeframe, limit):
                 'close': 'last',
                 'volume': 'sum'
             }).dropna()
-        elif timeframe in ['1h', '4h']:
-            # CMC only has daily data, can't provide hourly
+        elif timeframe in ['5m', '15m', '1h', '4h']:
+            # CMC only has daily data, can't provide intraday
             print(f"  ⚠️  CMC only provides daily data, cannot resample to {timeframe}")
-            print(f"  ⚠️  Using daily data instead")
+            print(f"  ⚠️  Using daily data instead (consider using CoinGecko for intraday)")
         
         # Limit to requested number of bars
         df = df.tail(limit)
@@ -149,6 +149,8 @@ def fetch_ohlcv_coingecko(symbol, timeframe, limit):
     
     # Calculate days needed based on timeframe
     timeframe_hours = {
+        '5m': 5/60,
+        '15m': 15/60,
         '1h': 1,
         '4h': 4,
         '1d': 24,
@@ -205,6 +207,8 @@ def fetch_ohlcv_coingecko(symbol, timeframe, limit):
             # CoinGecko gives ~5min data for 1 day, hourly for 2-90 days, daily for 91+ days
             # Resample to requested timeframe
             resample_map = {
+                '5m': '5T',
+                '15m': '15T',
                 '1h': '1H',
                 '4h': '4H',
                 '1d': '1D',
@@ -307,16 +311,9 @@ def fetch_ohlcv_data(exchange, symbol, timeframe, limit, source='auto'):
     elif source == 'auto':
         # Smart selection based on use case
         
-        # Strategy 1: Large historical dataset (>365 days) -> Use CMC
-        if limit > 365:
-            print(f"📊 Large dataset ({limit} bars) - Using CoinMarketCap for best historical data")
-            df = fetch_ohlcv_cmc(symbol, timeframe, limit)
-            if df is not None and not df.empty:
-                return df
-            print("⚠️  CMC fetch failed, falling back to CoinGecko...")
-        
-        # Strategy 2: Hourly/4h timeframe -> Use CoinGecko (CMC only has daily)
-        if timeframe in ['1h', '4h']:
+        # Strategy 1: Intraday timeframes -> Use CoinGecko (CMC only has daily)
+        # Check this FIRST before dataset size to avoid CMC for intraday
+        if timeframe in ['5m', '15m', '1h', '4h']:
             print(f"📊 Intraday timeframe ({timeframe}) - Using CoinGecko")
             df = fetch_ohlcv_coingecko(symbol, timeframe, limit)
             if df is not None and not df.empty:
@@ -326,7 +323,15 @@ def fetch_ohlcv_data(exchange, symbol, timeframe, limit, source='auto'):
             if df is not None and not df.empty:
                 return df
         
-        # Strategy 3: Daily/Weekly + reasonable limit -> Try CoinGecko first (faster)
+        # Strategy 2: Large historical dataset (>365 days) -> Use CMC
+        elif limit > 365:
+            print(f"📊 Large dataset ({limit} bars) - Using CoinMarketCap for best historical data")
+            df = fetch_ohlcv_cmc(symbol, timeframe, limit)
+            if df is not None and not df.empty:
+                return df
+            print("⚠️  CMC fetch failed, falling back to CoinGecko...")
+        
+        # Strategy 3: Default -> CoinGecko (fast, reliable, 365 days max)rst (faster)
         if timeframe in ['1d', '1w'] and limit <= 365:
             print(f"📊 Standard analysis ({limit} bars @ {timeframe}) - Using CoinGecko")
             df = fetch_ohlcv_coingecko(symbol, timeframe, limit)

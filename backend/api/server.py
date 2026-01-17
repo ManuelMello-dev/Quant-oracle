@@ -117,6 +117,10 @@ async def analyze(
         # Convert URL-safe format (BTC-USD) to standard format (BTC/USD)
         symbol = symbol.replace('-', '/')
         
+        # Use smart defaults for intraday timeframes (CoinGecko limitations)
+        if timeframe in ['5m', '15m'] and days > 2:
+            days = 1  # CoinGecko free tier has limited intraday data
+        
         # Run core analysis
         df = analyze_symbol(symbol, timeframe=timeframe, days=days)
         

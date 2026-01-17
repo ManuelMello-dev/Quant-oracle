@@ -49,6 +49,17 @@ export default function AnalyzePage() {
     }
   }
 
+  const getThresholdForTimeframe = (tf: string) => {
+    const thresholds: Record<string, number> = {
+      '5m': 2.5,
+      '15m': 2.0,
+      '1h': 1.8,
+      '4h': 1.5,
+      '1d': 1.5,
+    }
+    return thresholds[tf] || 2.0
+  }
+
   if (isLoading) {
     return (
       <main className="min-h-screen p-8">
@@ -103,9 +114,11 @@ export default function AnalyzePage() {
               onChange={(e) => setTimeframe(e.target.value)}
               className="bg-oracle-dark border border-gray-700 rounded-lg px-4 py-2"
             >
-              <option value="1h">1 Hour</option>
-              <option value="4h">4 Hours</option>
-              <option value="1d">1 Day</option>
+              <option value="5m">5 Minutes (Scalping)</option>
+              <option value="15m">15 Minutes (Day Trading)</option>
+              <option value="1h">1 Hour (Swing Trading)</option>
+              <option value="4h">4 Hours (Position Trading)</option>
+              <option value="1d">1 Day (Long-term)</option>
             </select>
             <button
               onClick={() => setUseLLM(!useLLM)}
@@ -232,7 +245,7 @@ export default function AnalyzePage() {
           </div>
 
           <div className="metric-card">
-            <div className="text-sm text-gray-400 mb-1">Deviation</div>
+            <div className="text-sm text-gray-400 mb-1">Deviation (Threshold: {getThresholdForTimeframe(timeframe)}σ)</div>
             <div className={`text-2xl font-bold font-mono ${
               metrics.deviation < -2 ? 'text-oracle-green' :
               metrics.deviation > 2 ? 'text-oracle-red' :

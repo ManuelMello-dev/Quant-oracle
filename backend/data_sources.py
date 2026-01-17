@@ -315,26 +315,16 @@ def fetch_ohlcv_data(exchange, symbol, timeframe, limit, source='auto'):
     elif source == 'auto':
         # Smart selection based on use case
         
-        # Strategy 1: Use Kraken for 5m/15m (best intraday data, no API keys needed)
-        if timeframe in ['5m', '15m']:
-            print(f"📊 Intraday timeframe ({timeframe}) - Using Kraken")
+        # Strategy 1: Use Kraken for ALL intraday timeframes (5m, 15m, 1h, 4h)
+        # CoinGecko only provides daily data for requests >90 days, causing static analysis bug
+        if timeframe in ['5m', '15m', '1h', '4h']:
+            print(f"📊 Intraday timeframe ({timeframe}) - Using Kraken for proper intraday data")
             from fetch_kraken import fetch_ohlcv_kraken
             df = fetch_ohlcv_kraken(symbol, timeframe, limit)
             if df is not None and not df.empty:
                 return df
-            print("⚠️  Kraken fetch failed, trying CoinGecko...")
+            print("⚠️  Kraken fetch failed, trying CoinGecko (may return daily data)...")
             df = fetch_ohlcv_coingecko(symbol, timeframe, limit)
-            if df is not None and not df.empty:
-                return df
-        
-        # Strategy 2: Use CoinGecko for 1h/4h
-        elif timeframe in ['1h', '4h']:
-            print(f"📊 Intraday timeframe ({timeframe}) - Using CoinGecko")
-            df = fetch_ohlcv_coingecko(symbol, timeframe, limit)
-            if df is not None and not df.empty:
-                return df
-            print("⚠️  CoinGecko fetch failed, trying CMC (daily data)...")
-            df = fetch_ohlcv_cmc(symbol, timeframe, limit)
             if df is not None and not df.empty:
                 return df
         

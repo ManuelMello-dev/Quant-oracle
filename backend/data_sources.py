@@ -308,12 +308,27 @@ def fetch_ohlcv_data(exchange, symbol, timeframe, limit, source='auto'):
             raise ValueError("Exchange object required for 'exchange' source")
         return fetch_ohlcv_exchange(exchange, symbol, timeframe, limit)
     
+    elif source == 'kraken':
+        from fetch_kraken import fetch_ohlcv_kraken
+        return fetch_ohlcv_kraken(symbol, timeframe, limit)
+    
     elif source == 'auto':
         # Smart selection based on use case
         
-        # Strategy 1: Intraday timeframes -> Use CoinGecko (CMC only has daily)
-        # Check this FIRST before dataset size to avoid CMC for intraday
-        if timeframe in ['5m', '15m', '1h', '4h']:
+        # Strategy 1: Use Kraken for 5m/15m (best intraday data, no API keys needed)
+        if timeframe in ['5m', '15m']:
+            print(f"📊 Intraday timeframe ({timeframe}) - Using Kraken")
+            from fetch_kraken import fetch_ohlcv_kraken
+            df = fetch_ohlcv_kraken(symbol, timeframe, limit)
+            if df is not None and not df.empty:
+                return df
+            print("⚠️  Kraken fetch failed, trying CoinGecko...")
+            df = fetch_ohlcv_coingecko(symbol, timeframe, limit)
+            if df is not None and not df.empty:
+                return df
+        
+        # Strategy 2: Use CoinGecko for 1h/4h
+        elif timeframe in ['1h', '4h']:
             print(f"📊 Intraday timeframe ({timeframe}) - Using CoinGecko")
             df = fetch_ohlcv_coingecko(symbol, timeframe, limit)
             if df is not None and not df.empty:
